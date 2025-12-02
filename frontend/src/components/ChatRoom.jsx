@@ -1,3 +1,6 @@
+
+const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
 import { useState } from "react";
 
 export default function ChatRoom({ personality, onFinish }) {
@@ -11,7 +14,7 @@ export default function ChatRoom({ personality, onFinish }) {
 
     const requestPrescription = async (history = messages, summary = "") => {
         try {
-            const prescriptionRes = await fetch("http://localhost:3000/api/prescription", {
+            const prescriptionRes = await fetch(`${API_URL}/api/prescription`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -53,7 +56,7 @@ export default function ChatRoom({ personality, onFinish }) {
         setLoading(true);
 
         try {
-            const res = await fetch("http://localhost:3000/api/chat", {
+            const res = await fetch(`${API_URL}/api/chat`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { invertMBTI } from "../utils/mbti";
 import BookCoverPlaceholder from "./BookCoverPlaceholder";
 
+const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
 export default function BookResult({ data, onDetailClick }) {
     const [shadow, setShadow] = useState(false);
     const [shadowBook, setShadowBook] = useState(null);
@@ -24,7 +26,7 @@ export default function BookResult({ data, onDetailClick }) {
             setLoadingShadow(true);
             try {
                 const invertedPersonality = invertMBTI(data?.personality);
-                const res = await fetch('http://localhost:3000/api/prescription', {
+                const res = await fetch(`${API_URL}/api/prescription`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
