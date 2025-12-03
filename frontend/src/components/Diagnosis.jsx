@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 
 const questions = [
     "一人で過ごすとエネルギーが回復する",
@@ -15,7 +16,7 @@ const questions = [
     "急な予定変更はあまり得意ではない"
 ];
 
-export default function Diagnosis({ onFinish }) {
+export default function Diagnosis({ onFinish, onBack }) {
     const [answers, setAnswers] = useState(Array(12).fill(3));
 
     const sum = (s, e) => answers.slice(s, e).reduce((a, b) => a + b, 0);
@@ -36,33 +37,51 @@ export default function Diagnosis({ onFinish }) {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-900 font-serif flex items-center justify-center px-4 py-8">
-            <div className="w-full max-w-2xl rounded-3xl bg-white border border-slate-200 shadow-lg p-6 sm:p-8">
-                <header className="text-center mb-8">
-                    <p className="text-xs tracking-[0.28em] text-slate-500 mb-2">
-                        N I G H T &nbsp; D I A G N O S I S
+        <div className="min-h-screen bg-cream text-navy font-serif flex items-center justify-center px-4 py-8">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                className="w-full max-w-2xl rounded-3xl bg-white border border-sage/20 shadow-luxury p-6 sm:p-8 relative"
+            >
+                {/* 戻るボタン */}
+                {onBack && (
+                    <button
+                        onClick={onBack}
+                        className="absolute top-6 left-6 text-sm text-navy/60 hover:text-navy transition-colors flex items-center gap-1"
+                    >
+                        <span>←</span> 戻る
+                    </button>
+                )}
+
+                <header className="text-center mb-8 mt-4">
+                    <p className="text-xs tracking-[0.28em] text-navy/60 mb-2 uppercase">
+                        Personality Diagnosis
                     </p>
-                    <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900">
-                        夜の行動診断
+                    <h1 className="text-2xl sm:text-3xl font-semibold text-navy">
+                        性格診断
                     </h1>
-                    <p className="mt-2 text-xs text-slate-600">
+                    <p className="mt-2 text-xs text-navy/70">
                         直感で1〜5のボタンを選んでください。左が「いいえ」、右が「はい」です。
                     </p>
                 </header>
 
                 <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
                     {questions.map((q, i) => (
-                        <div
+                        <motion.div
                             key={i}
-                            className="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-4"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.05, duration: 0.4 }}
+                            className="rounded-2xl bg-cream/60 border border-sage/10 px-4 py-4"
                         >
-                            <div className="flex items-center justify-between mb-2 text-xs text-slate-500">
+                            <div className="flex items-center justify-between mb-2 text-xs text-navy/60">
                                 <span>Q{i + 1}</span>
-                                <span className={`font-semibold ${answers[i] !== 3 ? 'text-indigo-600' : ''}`}>
+                                <span className={`font-semibold ${answers[i] !== 3 ? 'text-sage' : ''}`}>
                                     {answers[i]}
                                 </span>
                             </div>
-                            <p className="text-sm mb-4 text-slate-800">{q}</p>
+                            <p className="text-sm mb-4 text-navy">{q}</p>
 
                             {/* 5ボタンUI */}
                             <div className="flex gap-2 justify-center">
@@ -71,8 +90,8 @@ export default function Diagnosis({ onFinish }) {
                                         key={value}
                                         onClick={() => handleAnswer(i, value)}
                                         className={`w-12 h-12 rounded-lg font-semibold transition-all ${answers[i] === value
-                                                ? 'bg-slate-900 text-white shadow-md scale-105'
-                                                : 'border-2 border-slate-300 text-slate-400 hover:border-slate-400 hover:text-slate-600'
+                                            ? 'bg-navy text-cream shadow-md scale-105'
+                                            : 'border-2 border-sage/30 text-navy/40 hover:border-sage hover:text-navy'
                                             }`}
                                     >
                                         {value}
@@ -80,24 +99,25 @@ export default function Diagnosis({ onFinish }) {
                                 ))}
                             </div>
 
-                            <div className="flex justify-between text-[10px] text-slate-400 mt-2 px-1">
+                            <div className="flex justify-between text-[10px] text-navy/40 mt-2 px-1">
                                 <span>いいえ</span>
                                 <span>はい</span>
                             </div>
-                        </div>
+                        </motion.div>
                     ))}
                 </div>
 
                 <div className="flex justify-center pt-6">
-                    <button
+                    <motion.button
                         onClick={handleSubmit}
-                        className="px-8 py-2.5 rounded-full bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-lg"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="px-8 py-2.5 rounded-full bg-navy text-cream text-sm font-semibold hover:bg-midnight transition-colors shadow-lg"
                     >
                         この結果で進む
-                    </button>
+                    </motion.button>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 }
-

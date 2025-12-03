@@ -14,6 +14,16 @@ app.use(express.json());
 
 const PORT = 3000;
 
+// 起動時のAPIキーチェック
+if (!process.env.GEMINI_API_KEY) {
+  console.error("❌ ERROR: GEMINI_API_KEY is not set in .env file");
+  console.error("Please create a .env file with your Gemini API key.");
+  console.error("Get your key at: https://makersuite.google.com/app/apikey");
+  process.exit(1);
+}
+
+console.log("✅ GEMINI_API_KEY loaded successfully");
+
 // 履歴を整える関数
 // - 先頭が user 以外なら削る
 // - 最後の user（今回の発言）は history から外して sendMessage にだけ渡す
@@ -38,8 +48,14 @@ app.post("/api/chat", async (req, res) => {
     const { history = [], personality, message } = req.body;
 
     if (!message) {
-      return res.status(400).json({ error: "Message is required" });
+      console.warn("⚠️ Chat request missing message field");
+      return res.status(400).json({
+        error: "Message is required",
+        details: "メッセージが入力されていません"
+      });
     }
+
+    console.log(`📨 Chat request - Personality: ${personality}, Message: "${message.substring(0, 50)}..."`);
 
     const cleanedHistory = sanitizeHistory(history);
 
@@ -49,10 +65,23 @@ app.post("/api/chat", async (req, res) => {
       message
     );
 
+    console.log(`✅ Chat response generated: "${reply.substring(0, 50)}..."`);
+
     res.json({ reply });
   } catch (err) {
-    console.error("Gemini API Error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("❌ Gemini API Error in /api/chat:", err);
+    console.error("Error details:", {
+      message: err.message,
+      stack: err.stack,
+      personality: req.body.personality,
+      historyLength: req.body.history?.length
+    });
+
+    res.status(500).json({
+      error: "Internal server error",
+      details: `通信エラー: ${err.message}`,
+      suggestion: "APIキーが正しく設定されているか確認してください"
+    });
   }
 });
 
@@ -62,10 +91,18 @@ app.post("/api/prescription", async (req, res) => {
     const { personality, history } = req.body;
 
     if (!personality) {
-      return res.status(400).json({ error: "Personality is required" });
+      console.warn("⚠️ Prescription request missing personality field");
+      return res.status(400).json({
+        error: "Personality is required",
+        details: "性格診断が未実施です"
+      });
     }
 
+    console.log(`📚 Prescription request - Personality: ${personality}, History length: ${history?.length || 0}`);
+
     const prescription = await getBookPrescription(personality, history);
+
+    console.log(`✅ Book prescribed: "${prescription.book}" by ${prescription.author}`);
 
     // Google Books API から表紙画像を取得
     const imageUrl = await fetchBookCover(
@@ -78,12 +115,25 @@ app.post("/api/prescription", async (req, res) => {
       imageUrl
     });
   } catch (err) {
-    console.error("Prescription Error:", err);
-    res.status(500).json({ error: "Failed to generate prescription" });
+    console.error("❌ Prescription Error in /api/prescription:", err);
+    console.error("Error details:", {
+      message: err.message,
+      stack: err.stack,
+      personality: req.body.personality,
+      historyLength: req.body.history?.length
+    });
+
+    res.status(500).json({
+      error: "Failed to generate prescription",
+      details: `処方エラー: ${err.message}`,
+      suggestion: "しばらく待ってから再試行してください"
+    });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`🌙 Backend running on port ${PORT}`);
+  console.log(`🌙 Fateful Book Backend running on port ${PORT}`);
+  console.log(`📡 API endpoints available:`);
+  console.log(`   - POST http://localhost:${PORT}/api/chat`);
+  console.log(`   - POST http://localhost:${PORT}/api/prescription`);
 });
-

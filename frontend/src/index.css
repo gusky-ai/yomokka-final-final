@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 全体のベースレイアウト */
+/* グローバルスタイル: Fateful Book */
 html,
 body,
 #root {
@@ -10,17 +10,26 @@ body,
 }
 
 body {
-  @apply bg-night text-white font-serif;
+  @apply bg-cream text-navy font-serif;
+  font-feature-settings: "palt" 1;
+  /* 日本語フォントの文字詰め */
 }
 
-/* スクロールバーを少しだけ細く */
+/* スクロールバーのスタイル（高級感） */
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(148, 163, 184, 0.5);
+  background: linear-gradient(to bottom, #86a789, #d4af37);
   border-radius: 9999px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* スムーズスクロール */
+html {
+  scroll-behavior: smooth;
 }
