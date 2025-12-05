@@ -10,20 +10,20 @@ function shortenForChat(text) {
 
     // 句点で分割して2文まで取得
     const sentences = text.split(/[。！？]/).filter(s => s.trim());
-    let shortened = sentences.slice(0, 2).join('。');
+    let shortened = sentences.slice(0, 2).join("。");
     if (shortened && !shortened.match(/[。！？]$/)) {
-        shortened += '。';
+        shortened += "。";
     }
 
     // 100文字でカット（深掘り質問のため少し長めに）
     if (shortened.length > 100) {
-        return shortened.substring(0, 100) + '...';
+        return shortened.substring(0, 100) + "...";
     }
 
     return shortened;
 }
 
-// AI 人格の分岐プロンプト（深掘りモードに更新）
+// AI 人格の分岐プロンプト（深掘りモード）
 function personalityPrompt(type) {
     const tone =
         type && type.includes("T")
@@ -46,6 +46,7 @@ ${tone}
 `;
 }
 
+// メインチャット
 export async function getGeminiResponse(type, history, message) {
     try {
         const model = genAI.getGenerativeModel({
@@ -100,7 +101,9 @@ export async function getBookPrescription(personality, history) {
             .map((h) => `${h.role === "user" ? "ユーザー" : "薬剤師"}: ${h.content}`)
             .join("\n");
 
-        console.log(`📖 Generating prescription with ${history?.length || 0} conversation turns`);
+        console.log(
+            `📖 Generating prescription with ${history?.length || 0} conversation turns`
+        );
 
         const prompt = `
 あなたは深夜の言葉の薬局「Fateful Book」の薬剤師です。
@@ -138,7 +141,9 @@ ${conversationSummary}
             const jsonMatch = text.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
                 const prescription = JSON.parse(jsonMatch[0]);
-                console.log(`✅ Prescription parsed: "${prescription.book}" by ${prescription.author}`);
+                console.log(
+                    `✅ Prescription parsed: "${prescription.book}" by ${prescription.author}`
+                );
                 return prescription;
             }
             throw new Error("JSON not found in response");
@@ -150,11 +155,93 @@ ${conversationSummary}
                 book: "世界の終りとハードボイルド・ワンダーランド",
                 author: "村上春樹",
                 line: "現実と非現実のあいだで、そっと頭を冷やしたい夜に。",
-                reason: "あなたの言葉の温度や揺らぎから、静かに思考を整理できる物語が必要だと感じました。村上春樹の独特な世界観は、論理と感情の狭間で揺れるあなたの心に、穏やかな着地点を与えてくれるはずです。"
+                reason:
+                    "あなたの言葉の温度や揺らぎから、静かに思考を整理できる物語が必要だと感じました。村上春樹の独特な世界観は、論理と感情の狭間で揺れるあなたの心に、穏やかな着地点を与えてくれるはずです。",
             };
         }
     } catch (error) {
         console.error("❌ Error in getBookPrescription:", error);
         throw new Error(`Book prescription failed: ${error.message}`);
+    }
+}
+
+// 2回目以降の「クイック返信候補」を出す機能
+export async function getFollowupSuggestions(personality, history) {
+    try {
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash",
+        });
+
+        const conversationSummary = (history || [])
+            .map((h) => `${h.role === "user" ? "ユーザー" : "薬剤師"}: ${h.content}`)
+            .join("\n");
+
+        console.log(
+            `💬 Generating follow-up suggestions with ${history?.length || 0} conversation turns`
+        );
+
+        const prompt = `
+あなたは深夜の言葉の薬局「Fateful Book」の薬剤師です。
+
+以下の会話履歴とMBTIタイプから、
+ユーザーが次に押したくなる「クイック返信候補」を4つ考えてください。
+
+【MBTI】
+${personality || "不明"}
+
+【ここまでの会話】
+${conversationSummary}
+
+ルール：
+- 候補はすべて日本語
+- 1つあたり30文字以内
+- 押したらそのまま送信できる文章にする（語尾は話し言葉でOK）
+- ユーザーの今の感情・テーマに沿ったものにする
+- 新しい話題に切り替える選択肢が1つあってもよい
+
+必ず次のJSON「だけ」を返してください：
+
+{
+  "options": [
+    "候補1",
+    "候補2",
+    "候補3",
+    "候補4"
+  ]
+}
+`;
+
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+
+        console.log("💡 Raw suggestions:", text);
+
+        try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                const obj = JSON.parse(jsonMatch[0]);
+                if (Array.isArray(obj.options) && obj.options.length > 0) {
+                    return obj.options;
+                }
+            }
+        } catch (e) {
+            console.error("❌ Failed to parse suggestions JSON:", e);
+        }
+
+        // パースに失敗したり、変な形式のときのフォールバック
+        return [
+            "さっきの話をもう少し具体的に話したいです",
+            "別の悩みのことも話していいですか？",
+            "今の気持ちを一言で言うとこうです",
+            "うまく言葉にならないけど、モヤモヤしています",
+        ];
+    } catch (error) {
+        console.error("❌ Error in getFollowupSuggestions:", error);
+        return [
+            "さっきの話をもう少し具体的に話したいです",
+            "別の悩みのことも話していいですか？",
+            "今の気持ちを一言で言うとこうです",
+            "うまく言葉にならないけど、モヤモヤしています",
+        ];
     }
 }

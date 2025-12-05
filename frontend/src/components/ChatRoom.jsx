@@ -1,4 +1,3 @@
-
 const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 
 import { useState, useRef, useEffect } from "react";
@@ -12,17 +11,19 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
     const [prescriptionLoading, setPrescriptionLoading] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const [errorMessage, setErrorMessage] = useState(null);
+    const [suggestions, setSuggestions] = useState([]);
     const recognitionRef = useRef(null);
 
-    const MAX_TURNS = 15; // 深掘り対応のため増加
-    const canRequestPrescription = turns >= 3; // 3ターン以降に変更
+    const MAX_TURNS = 15;
+    const canRequestPrescription = turns >= 3;
 
     // 音声認識の設定
     useEffect(() => {
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+            const SpeechRecognition =
+                window.SpeechRecognition || window.webkitSpeechRecognition;
             recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.lang = 'ja-JP';
+            recognitionRef.current.lang = "ja-JP";
             recognitionRef.current.continuous = false;
             recognitionRef.current.interimResults = false;
 
@@ -44,7 +45,9 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
 
     const toggleVoiceInput = () => {
         if (!recognitionRef.current) {
-            alert('お使いのブラウザは音声入力に対応していません。Chrome/Edgeをご利用ください。');
+            alert(
+                "お使いのブラウザは音声入力に対応していません。Chrome/Edgeをご利用ください。"
+            );
             return;
         }
 
@@ -61,11 +64,11 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
     const handleUndo = () => {
         if (messages.length < 2) return;
 
-        // 最後のuserとassistantのペアを削除
         const newMessages = messages.slice(0, -2);
         setMessages(newMessages);
-        setTurns(Math.max(0, turns - 1));
+        setTurns((prev) => Math.max(0, prev - 1));
         setErrorMessage(null);
+        setSuggestions([]);
     };
 
     const requestPrescription = async (history = messages, summary = "") => {
@@ -78,26 +81,28 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     personality,
-                    history: history
-                })
+                    history,
+                }),
             });
 
             if (!prescriptionRes.ok) {
                 const errorData = await prescriptionRes.json();
-                throw new Error(errorData.details || errorData.error || '処方エラー');
+                throw new Error(
+                    errorData.details || errorData.error || "処方エラー"
+                );
             }
 
             const prescription = await prescriptionRes.json();
 
             onFinish({
-                summary: summary,
+                summary,
                 personality,
-                history: history,
+                history,
                 book: prescription.book,
                 author: prescription.author,
                 line: prescription.line,
                 reason: prescription.reason,
-                imageUrl: prescription.imageUrl
+                imageUrl: prescription.imageUrl,
             });
         } catch (prescriptionError) {
             console.error("Prescription error:", prescriptionError);
@@ -110,13 +115,19 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
         if (!messageText || loading) return;
 
         const newTurns = turns + 1;
-        const newHistory = [...messages, { role: "user", content: messageText }];
+        const userMessage = { role: "user", content: messageText };
+        const newHistory = [...messages, userMessage];
 
         setMessages(newHistory);
         setInput("");
         setTurns(newTurns);
         setLoading(true);
         setErrorMessage(null);
+        setSuggestions([]);
+
+        // 1ターン目だけ history を空で送る（personalityPrompt を効かせる）
+        const isFirstTurn = messages.length === 0;
+        const apiHistory = isFirstTurn ? [] : newHistory;
 
         try {
             const res = await fetch(`${API_URL}/api/chat`, {
@@ -125,13 +136,15 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                 body: JSON.stringify({
                     message: messageText,
                     personality,
-                    history: newHistory
-                })
+                    history: apiHistory,
+                }),
             });
 
             if (!res.ok) {
                 const errorData = await res.json();
-                throw new Error(errorData.details || errorData.error || '通信エラー');
+                throw new Error(
+                    errorData.details || errorData.error || "通信エラー"
+                );
             }
 
             const data = await res.json();
@@ -142,11 +155,32 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
             // 最大ターン数に達したら自動で処方
             if (newTurns >= MAX_TURNS) {
                 await requestPrescription(fullHistory, data.reply);
+                return;
+            }
+
+            // 2回目以降のチップ候補
+            try {
+                const sugRes = await fetch(`${API_URL}/api/suggestions`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        personality,
+                        history: fullHistory,
+                    }),
+                });
+
+                if (sugRes.ok) {
+                    const sugData = await sugRes.json();
+                    if (Array.isArray(sugData.options)) {
+                        setSuggestions(sugData.options);
+                    }
+                }
+            } catch (sugError) {
+                console.error("Suggestions error:", sugError);
             }
         } catch (e) {
             console.error("Chat error:", e);
             setErrorMessage(`通信エラー: ${e.message}`);
-            // エラー時はユーザーメッセージを削除
             setMessages(messages);
             setTurns(turns);
         } finally {
@@ -154,8 +188,17 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
         }
     };
 
+    // 途中から何度でも使えるクイック入力
     const quickSelect = (text) => {
         sendMessage(text);
+    };
+
+    // 最初だけ使うスタートタグ
+    const startQuickSelect = (text) => {
+        const startMessage =
+            `【スタートタグ】${text}\n` +
+            "今の気分を一番よく表していると思ったので、これを選びました。";
+        sendMessage(startMessage);
     };
 
     const handleKeyDown = (e) => {
@@ -199,12 +242,14 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
             <main className="flex-1 flex justify-center px-2 sm:px-4 py-4">
                 <div className="w-full max-w-2xl rounded-3xl bg-white border border-sage/20 shadow-luxury flex flex-col overflow-hidden">
                     <div className="flex flex-col h-full">
+                        {/* 説明 */}
                         <div className="px-4 pt-4 pb-2 border-b border-sage/10">
                             <p className="text-sm text-navy/80">
                                 今日のあなたのことを、好きな言葉で話してみてください。
                             </p>
                         </div>
 
+                        {/* メッセージ欄 */}
                         <div className="flex-1 px-4 py-3 space-y-3 overflow-y-auto">
                             <AnimatePresence>
                                 {messages.map((m, i) => (
@@ -214,12 +259,15 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0 }}
                                         transition={{ duration: 0.3 }}
-                                        className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                                        className={`flex ${m.role === "user"
+                                                ? "justify-end"
+                                                : "justify-start"
+                                            }`}
                                     >
                                         <div
                                             className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${m.role === "user"
-                                                ? "bg-sage/20 text-navy"
-                                                : "bg-cream border border-sage/10 text-navy/90"
+                                                    ? "bg-sage/20 text-navy"
+                                                    : "bg-cream border border-sage/10 text-navy/90"
                                                 }`}
                                         >
                                             {m.content}
@@ -239,16 +287,28 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                         <span className="inline-flex items-center gap-1">
                                             考えています
                                             <span className="inline-flex gap-0.5">
-                                                <span className="animate-bounce delay-0">.</span>
-                                                <span className="animate-bounce delay-100" style={{ animationDelay: '0.1s' }}>.</span>
-                                                <span className="animate-bounce delay-200" style={{ animationDelay: '0.2s' }}>.</span>
+                                                <span className="animate-bounce delay-0">
+                                                    .
+                                                </span>
+                                                <span
+                                                    className="animate-bounce delay-100"
+                                                    style={{ animationDelay: "0.1s" }}
+                                                >
+                                                    .
+                                                </span>
+                                                <span
+                                                    className="animate-bounce delay-200"
+                                                    style={{ animationDelay: "0.2s" }}
+                                                >
+                                                    .
+                                                </span>
                                             </span>
                                         </span>
                                     </div>
                                 </motion.div>
                             )}
 
-                            {/* エラーメッセージ表示 */}
+                            {/* エラーメッセージ */}
                             {errorMessage && (
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.95 }}
@@ -267,7 +327,7 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                 </motion.div>
                             )}
 
-                            {/* クイック選択肢（最初のみ表示） */}
+                            {/* スタート用クイック選択肢（最初のみ） */}
                             {messages.length === 0 && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
@@ -279,20 +339,55 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                         よくある気持ちから選ぶ：
                                     </p>
                                     <div className="flex flex-wrap gap-2 justify-center">
-                                        {["元気になりたい", "泣きたい", "落ち着きたい", "前に進みたい"].map((option) => (
-                                            <motion.button
-                                                key={option}
-                                                onClick={() => quickSelect(option)}
-                                                whileHover={{ scale: 1.05 }}
-                                                whileTap={{ scale: 0.95 }}
-                                                className="px-4 py-2 text-xs rounded-full border border-sage/30 text-navy/70 hover:bg-sage/10 hover:border-sage transition-colors"
-                                            >
-                                                {option}
-                                            </motion.button>
-                                        ))}
+                                        {["元気になりたい", "泣きたい", "落ち着きたい", "前に進みたい"].map(
+                                            (option) => (
+                                                <motion.button
+                                                    key={option}
+                                                    onClick={() =>
+                                                        startQuickSelect(option)
+                                                    }
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    className="px-4 py-2 text-xs rounded-full border border-sage/30 text-navy/70 hover:bg-sage/10 hover:border-sage transition-colors"
+                                                >
+                                                    {option}
+                                                </motion.button>
+                                            )
+                                        )}
                                     </div>
                                 </motion.div>
                             )}
+
+                            {/* 2回目以降のダイナミック候補 */}
+                            {messages.length > 0 &&
+                                suggestions.length > 0 &&
+                                !loading &&
+                                !prescriptionLoading && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="pt-2"
+                                    >
+                                        <p className="text-xs text-navy/60 mb-2 text-center">
+                                            つづきの話し方を選ぶ：
+                                        </p>
+                                        <div className="flex flex-wrap gap-2 justify-center">
+                                            {suggestions.map((option, idx) => (
+                                                <motion.button
+                                                    key={idx}
+                                                    onClick={() =>
+                                                        quickSelect(option)
+                                                    }
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    className="px-3 py-1.5 text-xs rounded-full border border-sage/30 text-navy/70 hover:bg-sage/10 hover:border-sage transition-colors"
+                                                >
+                                                    {option}
+                                                </motion.button>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
 
                             {messages.length === 0 && (
                                 <p className="text-xs text-navy/50 mt-4">
@@ -303,20 +398,23 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                         </div>
 
                         {/* 処方要求ボタン */}
-                        {canRequestPrescription && turns < MAX_TURNS && !loading && !prescriptionLoading && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="px-4 py-2 border-t border-sage/10 bg-cream/50 flex justify-center"
-                            >
-                                <button
-                                    onClick={() => requestPrescription()}
-                                    className="text-xs text-navy/70 hover:text-navy py-1 px-4 rounded-full border border-sage/30 hover:border-sage hover:bg-sage/5 transition-colors"
+                        {canRequestPrescription &&
+                            turns < MAX_TURNS &&
+                            !loading &&
+                            !prescriptionLoading && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="px-4 py-2 border-t border-sage/10 bg-cream/50 flex justify-center"
                                 >
-                                    本を処方してほしい
-                                </button>
-                            </motion.div>
-                        )}
+                                    <button
+                                        onClick={() => requestPrescription()}
+                                        className="text-xs text-navy/70 hover:text-navy py-1 px-4 rounded-full border border-sage/30 hover:border-sage hover:bg-sage/5 transition-colors"
+                                    >
+                                        本を処方してほしい
+                                    </button>
+                                </motion.div>
+                            )}
 
                         {/* 処方ローディング表示 */}
                         {prescriptionLoading && (
@@ -332,13 +430,16 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                             </motion.div>
                         )}
 
+                        {/* 入力エリア */}
                         <div className="border-t border-sage/10 px-4 py-3 flex gap-2 bg-cream/30">
                             <textarea
                                 rows={2}
                                 className="flex-1 text-sm bg-white border border-sage/20 rounded-2xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-sage/50"
                                 placeholder="心の中身を少しだけ置いていく感じで、書いてみてください。"
                                 value={input}
-                                onChange={(e) => setInput(e.target.value)}
+                                onChange={(e) =>
+                                    setInput(e.target.value)
+                                }
                                 onKeyDown={handleKeyDown}
                                 disabled={loading || prescriptionLoading}
                             />
@@ -350,7 +451,10 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                 className={`self-end px-3 py-2 rounded-2xl text-sm transition-all ${isListening
                                         ? "bg-gold text-white animate-pulse"
                                         : "bg-sage/20 text-navy hover:bg-sage/30"
-                                    } ${loading || prescriptionLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                                    } ${loading || prescriptionLoading
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : ""
+                                    }`}
                                 title="音声入力"
                             >
                                 🎤
@@ -360,8 +464,8 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                 onClick={() => sendMessage()}
                                 disabled={loading || !input || prescriptionLoading}
                                 className={`self-end px-4 py-2 rounded-2xl text-sm font-semibold transition-colors ${loading || !input || prescriptionLoading
-                                    ? "bg-navy/30 text-cream/50 cursor-not-allowed"
-                                    : "bg-navy text-cream hover:bg-midnight"
+                                        ? "bg-navy/30 text-cream/50 cursor-not-allowed"
+                                        : "bg-navy text-cream hover:bg-midnight"
                                     }`}
                             >
                                 {loading ? "…" : "送信"}

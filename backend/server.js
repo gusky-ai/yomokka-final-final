@@ -1,7 +1,11 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { getGeminiResponse, getBookPrescription } from "./services/gemini.js";
+import {
+  getGeminiResponse,
+  getBookPrescription,
+  getFollowupSuggestions,
+} from "./services/gemini.js";
 import { fetchBookCover } from "./services/books.js";
 
 dotenv.config();
@@ -43,6 +47,7 @@ function sanitizeHistory(history) {
   return copy;
 }
 
+// チャット本体
 app.post("/api/chat", async (req, res) => {
   try {
     const { history = [], personality, message } = req.body;
@@ -51,19 +56,20 @@ app.post("/api/chat", async (req, res) => {
       console.warn("⚠️ Chat request missing message field");
       return res.status(400).json({
         error: "Message is required",
-        details: "メッセージが入力されていません"
+        details: "メッセージが入力されていません",
       });
     }
 
-    console.log(`📨 Chat request - Personality: ${personality}, Message: "${message.substring(0, 50)}..."`);
+    console.log(
+      `📨 Chat request - Personality: ${personality}, Message: "${message.substring(
+        0,
+        50
+      )}..."`
+    );
 
     const cleanedHistory = sanitizeHistory(history);
 
-    const reply = await getGeminiResponse(
-      personality,
-      cleanedHistory,
-      message
-    );
+    const reply = await getGeminiResponse(personality, cleanedHistory, message);
 
     console.log(`✅ Chat response generated: "${reply.substring(0, 50)}..."`);
 
@@ -74,13 +80,13 @@ app.post("/api/chat", async (req, res) => {
       message: err.message,
       stack: err.stack,
       personality: req.body.personality,
-      historyLength: req.body.history?.length
+      historyLength: req.body.history?.length,
     });
 
     res.status(500).json({
       error: "Internal server error",
       details: `通信エラー: ${err.message}`,
-      suggestion: "APIキーが正しく設定されているか確認してください"
+      suggestion: "APIキーが正しく設定されているか確認してください",
     });
   }
 });
@@ -94,15 +100,20 @@ app.post("/api/prescription", async (req, res) => {
       console.warn("⚠️ Prescription request missing personality field");
       return res.status(400).json({
         error: "Personality is required",
-        details: "性格診断が未実施です"
+        details: "性格診断が未実施です",
       });
     }
 
-    console.log(`📚 Prescription request - Personality: ${personality}, History length: ${history?.length || 0}`);
+    console.log(
+      `📚 Prescription request - Personality: ${personality}, History length: ${history?.length || 0
+      }`
+    );
 
     const prescription = await getBookPrescription(personality, history);
 
-    console.log(`✅ Book prescribed: "${prescription.book}" by ${prescription.author}`);
+    console.log(
+      `✅ Book prescribed: "${prescription.book}" by ${prescription.author}`
+    );
 
     // Google Books API から表紙画像を取得
     const imageUrl = await fetchBookCover(
@@ -112,7 +123,7 @@ app.post("/api/prescription", async (req, res) => {
 
     res.json({
       ...prescription,
-      imageUrl
+      imageUrl,
     });
   } catch (err) {
     console.error("❌ Prescription Error in /api/prescription:", err);
@@ -120,13 +131,59 @@ app.post("/api/prescription", async (req, res) => {
       message: err.message,
       stack: err.stack,
       personality: req.body.personality,
-      historyLength: req.body.history?.length
+      historyLength: req.body.history?.length,
     });
 
     res.status(500).json({
       error: "Failed to generate prescription",
       details: `処方エラー: ${err.message}`,
-      suggestion: "しばらく待ってから再試行してください"
+      suggestion: "しばらく待ってから再試行してください",
+    });
+  }
+});
+
+// 2回目以降のクイック返信候補エンドポイント
+app.post("/api/suggestions", async (req, res) => {
+  try {
+    const { personality, history = [] } = req.body;
+
+    if (!history || !Array.isArray(history) || history.length === 0) {
+      console.warn("⚠️ Suggestions request missing or empty history");
+      return res.status(400).json({
+        error: "History is required",
+        details: "会話履歴が不足しています",
+      });
+    }
+
+    const cleanedHistory = sanitizeHistory(history);
+
+    console.log(
+      `💬 Suggestions request - Personality: ${personality}, History length: ${cleanedHistory.length
+      }`
+    );
+
+    const options = await getFollowupSuggestions(personality, cleanedHistory);
+
+    console.log(
+      `✅ Suggestions generated: ${options
+        .map((o) => `"${o.substring(0, 20)}"`)
+        .join(", ")}`
+    );
+
+    res.json({ options });
+  } catch (err) {
+    console.error("❌ Suggestions Error in /api/suggestions:", err);
+    console.error("Error details:", {
+      message: err.message,
+      stack: err.stack,
+      personality: req.body.personality,
+      historyLength: req.body.history?.length,
+    });
+
+    res.status(500).json({
+      error: "Failed to generate suggestions",
+      details: `候補生成エラー: ${err.message}`,
+      suggestion: "しばらく待ってから再試行してください",
     });
   }
 });
@@ -136,4 +193,5 @@ app.listen(PORT, () => {
   console.log(`📡 API endpoints available:`);
   console.log(`   - POST http://localhost:${PORT}/api/chat`);
   console.log(`   - POST http://localhost:${PORT}/api/prescription`);
+  console.log(`   - POST http://localhost:${PORT}/api/suggestions`);
 });
