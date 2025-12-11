@@ -19,14 +19,14 @@ app.use(express.json());
 const PORT = 3000;
 
 // 起動時のAPIキーチェック
-if (!process.env.GEMINI_API_KEY) {
-  console.error("❌ ERROR: GEMINI_API_KEY is not set in .env file");
-  console.error("Please create a .env file with your Gemini API key.");
-  console.error("Get your key at: https://makersuite.google.com/app/apikey");
+// 起動時のAPIキーチェック: Gemini, OpenAI, Groq のいずれかがあれば起動
+if (!process.env.GEMINI_API_KEY && !process.env.OPENAI_API_KEY && !process.env.GROQ_API_KEY) {
+  console.error("❌ ERROR: No AI API key found in .env (GEMINI_API_KEY or OPENAI_API_KEY or GROQ_API_KEY required)");
+  console.error("Please add one of the supported API keys to backend/.env");
   process.exit(1);
 }
 
-console.log("✅ GEMINI_API_KEY loaded successfully");
+console.log("✅ AI API key detected (one of GEMINI/OPENAI/GROQ)");
 
 // 履歴を整える関数
 // - 先頭が user 以外なら削る

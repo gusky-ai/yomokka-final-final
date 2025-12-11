@@ -2,6 +2,7 @@ const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Particles from "./Particles.jsx";
 
 export default function ChatRoom({ personality, onFinish, onBack }) {
     const [messages, setMessages] = useState([]);
@@ -209,26 +210,31 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
     };
 
     return (
-        <div className="min-h-screen bg-cream text-navy font-serif flex flex-col">
+        <div className="min-h-screen relative overflow-hidden font-serif flex flex-col">
+            {/* ダークグラデーション背景 */}
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-purple-950 to-pink-900 animate-gradient -z-20" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/30 -z-10" />
+            <Particles />
+
             {/* ヘッダー */}
-            <header className="px-4 pt-4 pb-3 border-b border-sage/20 bg-white">
+            <header className="px-4 pt-4 pb-3 border-b border-white/10 backdrop-blur-md bg-white/5 relative z-10">
                 <div className="max-w-2xl mx-auto flex items-center justify-between">
                     {onBack && (
                         <button
                             onClick={onBack}
-                            className="text-sm text-navy/60 hover:text-navy transition-colors flex items-center gap-1"
+                            className="text-sm text-white/70 hover:text-white transition-colors flex items-center gap-1"
                         >
                             <span>←</span> 診断に戻る
                         </button>
                     )}
-                    <p className="text-xs tracking-[0.25em] text-navy/60 mx-auto uppercase">
-                        Counseling
+                    <p className="text-xs tracking-[0.3em] text-white/60 mx-auto uppercase font-sans">
+                        💬 Counseling
                     </p>
                     {messages.length >= 2 && (
                         <button
                             onClick={handleUndo}
                             disabled={loading || prescriptionLoading}
-                            className="text-sm text-navy/60 hover:text-navy transition-colors flex items-center gap-1"
+                            className="text-sm text-white/70 hover:text-white transition-colors flex items-center gap-1"
                             title="一つ前の質問に戻る"
                         >
                             <span>↶</span> 戻る
@@ -239,12 +245,12 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
             </header>
 
             {/* チャット本体 */}
-            <main className="flex-1 flex justify-center px-2 sm:px-4 py-4">
-                <div className="w-full max-w-2xl rounded-3xl bg-white border border-sage/20 shadow-luxury flex flex-col overflow-hidden">
+            <main className="flex-1 flex justify-center px-2 sm:px-4 py-6 relative z-10">
+                <div className="w-full max-w-2xl rounded-3xl glassmorphism-dark border border-white/10 shadow-2xl flex flex-col overflow-hidden">
                     <div className="flex flex-col h-full">
                         {/* 説明 */}
-                        <div className="px-4 pt-4 pb-2 border-b border-sage/10">
-                            <p className="text-sm text-navy/80">
+                        <div className="px-4 pt-4 pb-3 border-b border-white/10">
+                            <p className="text-sm text-white/80 font-light">
                                 今日のあなたのことを、好きな言葉で話してみてください。
                             </p>
                         </div>
@@ -260,14 +266,14 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                         exit={{ opacity: 0 }}
                                         transition={{ duration: 0.3 }}
                                         className={`flex ${m.role === "user"
-                                                ? "justify-end"
-                                                : "justify-start"
+                                            ? "justify-end"
+                                            : "justify-start"
                                             }`}
                                     >
                                         <div
-                                            className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${m.role === "user"
-                                                    ? "bg-sage/20 text-navy"
-                                                    : "bg-cream border border-sage/10 text-navy/90"
+                                            className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-lg ${m.role === "user"
+                                                ? "bg-gradient-to-br from-purple-600 to-pink-600 text-white"
+                                                : "bg-white/10 backdrop-blur-md border border-white/20 text-white/90"
                                                 }`}
                                         >
                                             {m.content}
@@ -283,7 +289,7 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                     animate={{ opacity: 1 }}
                                     className="flex justify-start"
                                 >
-                                    <div className="max-w-[80%] px-3 py-2 rounded-2xl text-sm bg-cream border border-sage/10 text-navy/70 animate-pulse">
+                                    <div className="max-w-[80%] px-4 py-3 rounded-2xl text-sm bg-white/10 backdrop-blur-md border border-white/20 text-white/70 animate-pulse">
                                         <span className="inline-flex items-center gap-1">
                                             考えています
                                             <span className="inline-flex gap-0.5">
@@ -335,7 +341,7 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                     transition={{ delay: 0.3 }}
                                     className="pt-4"
                                 >
-                                    <p className="text-xs text-navy/60 mb-3 text-center">
+                                    <p className="text-xs text-white/60 mb-3 text-center">
                                         よくある気持ちから選ぶ：
                                     </p>
                                     <div className="flex flex-wrap gap-2 justify-center">
@@ -346,9 +352,9 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                                     onClick={() =>
                                                         startQuickSelect(option)
                                                     }
-                                                    whileHover={{ scale: 1.05 }}
+                                                    whileHover={{ scale: 1.05, boxShadow: "0 10px 30px rgba(255, 215, 0, 0.3)" }}
                                                     whileTap={{ scale: 0.95 }}
-                                                    className="px-4 py-2 text-xs rounded-full border border-sage/30 text-navy/70 hover:bg-sage/10 hover:border-sage transition-colors"
+                                                    className="px-4 py-2 text-xs rounded-full border border-white/30 text-white/80 hover:bg-white/10 hover:border-gold transition-all backdrop-blur-sm"
                                                 >
                                                     {option}
                                                 </motion.button>
@@ -368,7 +374,7 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                         animate={{ opacity: 1, y: 0 }}
                                         className="pt-2"
                                     >
-                                        <p className="text-xs text-navy/60 mb-2 text-center">
+                                        <p className="text-xs text-white/60 mb-2 text-center">
                                             つづきの話し方を選ぶ：
                                         </p>
                                         <div className="flex flex-wrap gap-2 justify-center">
@@ -378,9 +384,9 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                                     onClick={() =>
                                                         quickSelect(option)
                                                     }
-                                                    whileHover={{ scale: 1.05 }}
+                                                    whileHover={{ scale: 1.05, boxShadow: "0 10px 30px rgba(255, 215, 0, 0.3)" }}
                                                     whileTap={{ scale: 0.95 }}
-                                                    className="px-3 py-1.5 text-xs rounded-full border border-sage/30 text-navy/70 hover:bg-sage/10 hover:border-sage transition-colors"
+                                                    className="px-3 py-1.5 text-xs rounded-full border border-white/30 text-white/80 hover:bg-white/10 hover:border-gold transition-all backdrop-blur-sm"
                                                 >
                                                     {option}
                                                 </motion.button>
@@ -390,7 +396,7 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                 )}
 
                             {messages.length === 0 && (
-                                <p className="text-xs text-navy/50 mt-4">
+                                <p className="text-xs text-white/50 mt-4">
                                     例）「最近、試合と勉強のバランスがうまくとれない。」<br />
                                     「楽しいけど、時々ふと不安になる夜がある。」
                                 </p>
@@ -405,13 +411,13 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                 <motion.div
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
-                                    className="px-4 py-2 border-t border-sage/10 bg-cream/50 flex justify-center"
+                                    className="px-4 py-3 border-t border-white/10 bg-white/5 backdrop-blur-md flex justify-center"
                                 >
                                     <button
                                         onClick={() => requestPrescription()}
-                                        className="text-xs text-navy/70 hover:text-navy py-1 px-4 rounded-full border border-sage/30 hover:border-sage hover:bg-sage/5 transition-colors"
+                                        className="text-sm text-white/80 hover:text-gold py-2 px-6 rounded-full border border-white/30 hover:border-gold hover:bg-white/10 transition-all backdrop-blur-sm shadow-lg"
                                     >
-                                        本を処方してほしい
+                                        📚 本を処方してほしい
                                     </button>
                                 </motion.div>
                             )}
@@ -421,20 +427,20 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                             <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                className="px-4 py-3 border-t border-sage/10 bg-gold/5 flex items-center justify-center gap-2"
+                                className="px-4 py-4 border-t border-white/10 bg-gradient-to-r from-gold/10 to-yellow-500/10 backdrop-blur-md flex items-center justify-center gap-3"
                             >
-                                <div className="w-4 h-4 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-                                <span className="text-sm text-navy/80 font-medium">
+                                <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+                                <span className="text-sm text-white font-medium">
                                     運命の一冊を選定中...
                                 </span>
                             </motion.div>
                         )}
 
                         {/* 入力エリア */}
-                        <div className="border-t border-sage/10 px-4 py-3 flex gap-2 bg-cream/30">
+                        <div className="border-t border-white/10 px-4 py-3 flex gap-2 bg-white/5 backdrop-blur-md">
                             <textarea
                                 rows={2}
-                                className="flex-1 text-sm bg-white border border-sage/20 rounded-2xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-sage/50"
+                                className="flex-1 text-sm bg-white/10 backdrop-blur-md border border-white/20 text-white placeholder-white/50 rounded-2xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-gold/50"
                                 placeholder="心の中身を少しだけ置いていく感じで、書いてみてください。"
                                 value={input}
                                 onChange={(e) =>
@@ -449,8 +455,8 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                                 onClick={toggleVoiceInput}
                                 disabled={loading || prescriptionLoading}
                                 className={`self-end px-3 py-2 rounded-2xl text-sm transition-all ${isListening
-                                        ? "bg-gold text-white animate-pulse"
-                                        : "bg-sage/20 text-navy hover:bg-sage/30"
+                                        ? "bg-gold text-white animate-pulse shadow-lg shadow-gold/50"
+                                        : "bg-white/10 text-white backdrop-blur-md hover:bg-white/20 border border-white/20"
                                     } ${loading || prescriptionLoading
                                         ? "opacity-50 cursor-not-allowed"
                                         : ""
@@ -463,12 +469,12 @@ export default function ChatRoom({ personality, onFinish, onBack }) {
                             <button
                                 onClick={() => sendMessage()}
                                 disabled={loading || !input || prescriptionLoading}
-                                className={`self-end px-4 py-2 rounded-2xl text-sm font-semibold transition-colors ${loading || !input || prescriptionLoading
-                                        ? "bg-navy/30 text-cream/50 cursor-not-allowed"
-                                        : "bg-navy text-cream hover:bg-midnight"
+                                className={`self-end px-5 py-2 rounded-2xl text-sm font-semibold transition-all ${loading || !input || prescriptionLoading
+                                        ? "bg-white/10 text-white/30 cursor-not-allowed border border-white/10"
+                                        : "bg-gradient-to-r from-gold to-yellow-500 text-purple-900 hover:shadow-lg hover:shadow-gold/50"
                                     }`}
                             >
-                                {loading ? "…" : "送信"}
+                                {loading ? "…" : "✨ 送信"}
                             </button>
                         </div>
                     </div>

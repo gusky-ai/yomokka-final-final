@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { invertMBTI } from "../utils/mbti";
 import BookCoverPlaceholder from "./BookCoverPlaceholder";
+import Particles from "./Particles.jsx";
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 
@@ -21,7 +22,8 @@ export default function BookResult({ data, onDetailClick, onBackToHome }) {
         author: data?.author || "村上春樹",
         line: data?.line || "現実と非現実のあいだで、そっと頭を冷やしたい夜に。",
         reason: data?.reason || "あなたの言葉の温度や揺らぎから、静かに思考を整理できる物語が必要だと感じました。",
-        imageUrl: data?.imageUrl || null
+        imageUrl: data?.imageUrl || null,
+        personality: data?.personality
     };
 
     // Shadowボタン押下時の処理
@@ -30,7 +32,7 @@ export default function BookResult({ data, onDetailClick, onBackToHome }) {
             // Shadow用の本を取得
             setLoadingShadow(true);
             try {
-                const invertedPersonality = invertMBTI(data?.personality);
+                const invertedPersonality = invertMBTI(data?.personality || "INFP");
                 const res = await fetch(`${API_URL}/api/prescription`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -79,229 +81,332 @@ export default function BookResult({ data, onDetailClick, onBackToHome }) {
         }, 50);
 
         return () => clearInterval(timer);
-    }, [revealed, displayBook.reason]);
+    }, [revealed, displayBook.reason, shadow]);
 
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6 }}
-            className={`min-h-screen font-serif flex items-center justify-center px-4 py-8 transition-colors duration-700 ${shadow ? "bg-midnight text-cream" : "bg-cream text-navy"
+            className={`min-h-screen font-serif flex flex-col items-center justify-center px-4 py-8 transition-colors duration-700 ${shadow ? "bg-midnight text-cream" : "bg-cream text-navy"
                 }`}
         >
-            <div
-                className={`w-full max-w-xl rounded-3xl border shadow-luxury overflow-hidden relative ${shadow
-                    ? "bg-midnight/90 border-navy/50"
-                    : "bg-white border-sage/20"
-                    }`}
-            >
-                {/* 光のにじみエフェクト */}
-                <div className="pointer-events-none absolute inset-0 opacity-30">
-                    <div
-                        className={`absolute -top-10 -left-10 w-40 h-40 rounded-full blur-3xl ${shadow ? "bg-gold/20" : "bg-sage/20"
-                            }`}
-                    />
-                    <div
-                        className={`absolute bottom-0 right-0 w-56 h-56 rounded-full blur-3xl ${shadow ? "bg-navy/40" : "bg-gold/10"
-                            }`}
-                    />
-                </div>
+            {/* パーティクルエフェクト */}
+            <Particles />
 
-                <div className="relative z-10 p-6 sm:p-8">
-                    <p className={`text-[11px] tracking-[0.28em] uppercase mb-2 ${shadow ? "text-cream/60" : "text-navy/60"}`}>
-                        Prescription
-                    </p>
-                    <h1 className="text-2xl sm:text-3xl font-semibold mb-3">
-                        {shadow ? "もう1つの処方箋" : "本日の処方箋"}
-                    </h1>
-                    <p className={`text-xs sm:text-sm mb-6 ${shadow ? "text-cream/80" : "text-navy/70"}`}>
-                        {shadow
-                            ? "あなたの真逆の性質に効く、もう1冊の処方箋です。"
-                            : "あなたの言葉の温度や揺らぎから見立てた、本の処方箋です。"}
-                    </p>
+            {/* Shadowモード時の上部バナー */}
+            {shadow && (
+                <motion.div
+                    initial={{ y: -50, opacity: 0, scale: 0.8 }}
+                    animate={{ y: 0, opacity: 1, scale: 1 }}
+                    transition={{ type: "spring", bounce: 0.6 }}
+                    className="absolute top-6 z-20 px-4"
+                >
+                    <motion.div
+                        animate={{
+                            boxShadow: [
+                                "0 0 20px 5px rgba(212, 175, 55, 0.5)",
+                                "0 0 40px 10px rgba(212, 175, 55, 0.8)",
+                                "0 0 20px 5px rgba(212, 175, 55, 0.5)",
+                            ],
+                            y: [0, -5, 0]
+                        }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="bg-gold/90 text-midnight px-6 py-2 rounded-full shadow-xl text-sm font-semibold border border-gold/40 text-center"
+                    >
+                        ✨ Shadow Mode Active ✨
+                    </motion.div>
+                </motion.div>
+            )}
 
-                    {/* 封筒/開封前の表示 */}
-                    <AnimatePresence mode="wait">
-                        {!revealed ? (
-                            <motion.div
-                                key="envelope"
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                                transition={{ duration: 0.5 }}
-                                className="flex flex-col items-center justify-center py-12"
-                            >
-                                {/* 光の球体 */}
-                                <motion.div
-                                    animate={{
-                                        boxShadow: [
-                                            '0 0 40px 15px rgba(212, 175, 55, 0.4)',
-                                            '0 0 60px 25px rgba(212, 175, 55, 0.6)',
-                                            '0 0 40px 15px rgba(212, 175, 55, 0.4)',
-                                        ],
-                                    }}
-                                    transition={{ duration: 2, repeat: Infinity }}
-                                    className="w-32 h-32 rounded-full bg-gradient-to-br from-gold/40 to-sage/30 flex items-center justify-center mb-6"
-                                >
-                                    <span className="text-4xl">📖</span>
-                                </motion.div>
+            <div className="max-w-md w-full flex flex-col items-center text-center relative z-10">
+                <h1 className="text-2xl sm:text-3xl font-semibold mb-3">
+                    {shadow ? "もう1つの処方箋" : "本日の処方箋"}
+                </h1>
+                <p className={`text-xs sm:text-sm mb-6 ${shadow ? "text-cream/80" : "text-navy/70"}`}>
+                    {shadow
+                        ? "あなたの真逆の性質に効く、もう1冊の処方箋です。"
+                        : "あなたの言葉の温度や揺らぎから見立てた、本の処方箋です。"}
+                </p>
 
-                                <p className={`text-lg font-semibold mb-4 ${shadow ? "text-cream" : "text-navy"}`}>
-                                    運命の一冊が処方されました
-                                </p>
-
-                                <motion.button
-                                    onClick={handleReveal}
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    className={`px-8 py-3 rounded-full font-semibold text-sm shadow-xl transition-all ${shadow
-                                            ? "bg-gold text-midnight hover:bg-gold/90"
-                                            : "bg-navy text-cream hover:bg-midnight"
-                                        }`}
-                                >
-                                    開封する
-                                </motion.button>
-                            </motion.div>
-                        ) : (
-                            /* 開封後: 本の表示 */
-                            <motion.div
-                                key="book"
-                                initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                transition={{ duration: 0.8, ease: "easeOut" }}
-                            >
-                                {loadingShadow ? (
-                                    <div className="flex justify-center items-center py-12">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-                                            <p className={`text-sm ${shadow ? "text-cream/70" : "text-navy/70"}`}>
-                                                別の本を探しています...
-                                            </p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div
-                                        className={`rounded-2xl overflow-hidden border ${shadow
-                                            ? "bg-navy/60 border-navy/50"
-                                            : "bg-cream border-sage/10"
-                                            }`}
-                                    >
-                                        {/* 表紙画像 */}
-                                        <motion.div
-                                            initial={{ opacity: 0, filter: "blur(10px)" }}
-                                            animate={{ opacity: 1, filter: "blur(0px)" }}
-                                            transition={{ delay: 0.3, duration: 0.8 }}
-                                            className="w-full flex justify-center py-6 px-4"
-                                        >
-                                            {displayBook.imageUrl && !imageError ? (
-                                                <img
-                                                    src={displayBook.imageUrl}
-                                                    alt={`${displayBook.book}の表紙`}
-                                                    onError={() => setImageError(true)}
-                                                    className="h-56 object-contain rounded shadow-md"
-                                                />
-                                            ) : (
-                                                <BookCoverPlaceholder
-                                                    title={displayBook.book}
-                                                    author={displayBook.author}
-                                                />
-                                            )}
-                                        </motion.div>
-
-                                        <div className="px-4 pb-4">
-                                            <motion.p
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ delay: 0.5, duration: 0.5 }}
-                                                className={`text-lg font-semibold mb-1 ${shadow ? "text-cream" : "text-navy"}`}
-                                            >
-                                                『{displayBook.book}』
-                                            </motion.p>
-                                            {displayBook.author && (
-                                                <motion.p
-                                                    initial={{ opacity: 0 }}
-                                                    animate={{ opacity: 1 }}
-                                                    transition={{ delay: 0.6, duration: 0.5 }}
-                                                    className={`text-xs mb-3 ${shadow ? "text-cream/60" : "text-navy/60"}`}
-                                                >
-                                                    著：{displayBook.author}
-                                                </motion.p>
-                                            )}
-                                            <motion.p
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                transition={{ delay: 0.7, duration: 0.5 }}
-                                                className={`text-sm sm:text-base mb-4 italic leading-relaxed ${shadow ? "text-cream/90" : "text-navy/80"}`}
-                                            >
-                                                「{displayBook.line}」
-                                            </motion.p>
-
-                                            {/* タイプライター効果のreasonテキスト */}
-                                            <motion.div
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                transition={{ delay: 0.9, duration: 0.5 }}
-                                                className={`text-sm leading-relaxed mb-4 ${shadow ? "text-cream/80" : "text-navy/70"}`}
-                                            >
-                                                {displayedReason}
-                                                <span className="animate-pulse">|</span>
-                                            </motion.div>
-
-                                            {/* 続きを読むボタン */}
-                                            {displayedReason === displayBook.reason && (
-                                                <motion.button
-                                                    initial={{ opacity: 0 }}
-                                                    animate={{ opacity: 1 }}
-                                                    transition={{ duration: 0.5 }}
-                                                    onClick={() => onDetailClick && onDetailClick(displayBook)}
-                                                    className={`text-sm font-semibold transition-colors ${shadow
-                                                        ? "text-gold hover:text-gold/80"
-                                                        : "text-sage hover:text-sage/80"
-                                                        }`}
-                                                >
-                                                    続きを読む →
-                                                </motion.button>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    {/* Shadowボタン & トップに戻るボタン */}
-                    {revealed && (
+                {/* メインコンテンツエリア */}
+                <AnimatePresence mode="wait">
+                    {!revealed ? (
+                        /* --- 開封前の封筒表示 --- */
                         <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 1, duration: 0.5 }}
-                            className="mt-6 flex justify-between items-center"
+                            key="envelope"
+                            initial={{ opacity: 0, scale: 0.5, rotateY: -180 }}
+                            animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+                            exit={{ opacity: 0, scale: 1.2, rotateY: 180 }}
+                            transition={{ duration: 0.8, type: "spring" }}
+                            className="flex flex-col items-center justify-center py-12"
                         >
-                            {onBackToHome && (
-                                <button
-                                    onClick={onBackToHome}
-                                    className={`text-xs px-3 py-1.5 rounded-full transition-all ${shadow
-                                            ? "border border-cream/20 text-cream/80 hover:bg-cream/10"
-                                            : "border border-navy/30 text-navy/70 hover:bg-navy/5"
-                                        }`}
+                            {/* キラキラ舞うエフェクト */}
+                            <div className="absolute inset-0 pointer-events-none">
+                                {[...Array(15)].map((_, i) => (
+                                    <motion.div
+                                        key={i}
+                                        className="absolute w-2 h-2 bg-gold/60 rounded-full"
+                                        style={{
+                                            left: `${Math.random() * 100}%`,
+                                            top: `${Math.random() * 100}%`,
+                                        }}
+                                        animate={{
+                                            y: [0, -30, 0],
+                                            opacity: [0, 1, 0],
+                                            scale: [0, 1.5, 0],
+                                        }}
+                                        transition={{
+                                            duration: 2 + Math.random() * 2,
+                                            repeat: Infinity,
+                                            delay: Math.random() * 2,
+                                        }}
+                                    />
+                                ))}
+                            </div>
+
+                            <motion.div
+                                animate={{
+                                    boxShadow: [
+                                        '0 0 40px 15px rgba(212, 175, 55, 0.4)',
+                                        '0 0 80px 30px rgba(212, 175, 55, 0.7)',
+                                        '0 0 40px 15px rgba(212, 175, 55, 0.4)',
+                                    ],
+                                    scale: [1, 1.05, 1],
+                                    rotate: [0, 5, -5, 0],
+                                }}
+                                transition={{ duration: 3, repeat: Infinity }}
+                                className="w-32 h-32 rounded-full bg-gradient-to-br from-gold/40 to-sage/30 flex items-center justify-center mb-6 relative"
+                            >
+                                <motion.span
+                                    animate={{ rotate: [0, 10, -10, 0] }}
+                                    transition={{ duration: 2, repeat: Infinity }}
+                                    className="text-5xl"
                                 >
-                                    トップに戻る
-                                </button>
+                                    📖
+                                </motion.span>
+
+                                {/* 回転する光のリング */}
+                                <motion.div
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                                    className="absolute inset-0 rounded-full border-2 border-dashed border-gold/40"
+                                />
+                            </motion.div>
+
+                            <motion.p
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3 }}
+                                className={`text-xl font-bold mb-2 ${shadow ? "text-cream" : "text-navy"}`}
+                            >
+                                🎁 運命の一冊が処方されました
+                            </motion.p>
+
+                            <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.5 }}
+                                className={`text-sm mb-6 ${shadow ? "text-cream/70" : "text-navy/60"}`}
+                            >
+                                封印を解いて、あなたの本と出会いましょう
+                            </motion.p>
+
+                            <motion.button
+                                onClick={handleReveal}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.7 }}
+                                whileHover={{
+                                    scale: 1.1,
+                                    boxShadow: "0 20px 40px rgba(212, 175, 55, 0.4)"
+                                }}
+                                whileTap={{ scale: 0.95 }}
+                                className={`px-10 py-4 rounded-full font-bold text-base shadow-2xl transition-all relative overflow-hidden ${shadow
+                                        ? "bg-gold text-midnight hover:bg-gold/90"
+                                        : "bg-navy text-cream hover:bg-midnight"
+                                    }`}
+                            >
+                                <span className="relative z-10">✨ 開封する</span>
+                                <motion.div
+                                    animate={{ x: ["-100%", "200%"] }}
+                                    transition={{ duration: 2, repeat: Infinity }}
+                                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                                />
+                            </motion.button>
+                        </motion.div>
+                    ) : (
+                        /* --- 開封後の本表示 --- */
+                        <motion.div
+                            key="book-content"
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                            className="w-full"
+                        >
+                            {loadingShadow ? (
+                                <div className="flex justify-center items-center py-20">
+                                    <div className="flex flex-col items-center gap-4">
+                                        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+                                        <p className={`text-sm ${shadow ? "text-cream/70" : "text-navy/70"}`}>
+                                            裏側の世界から本を探しています...
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className={`rounded-2xl overflow-hidden border p-6 mb-6 ${shadow ? "bg-navy/60 border-navy/50" : "bg-white/80 border-sage/10"
+                                    }`}>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 30, rotateY: -15 }}
+                                        animate={{
+                                            opacity: 1,
+                                            y: [0, -10, 0],
+                                            rotateY: 0
+                                        }}
+                                        transition={{
+                                            opacity: { delay: 0.2, duration: 0.8 },
+                                            y: { duration: 3, repeat: Infinity, ease: "easeInOut" },
+                                            rotateY: { delay: 0.2, duration: 0.8 }
+                                        }}
+                                        whileHover={{
+                                            scale: 1.05,
+                                            rotateY: 5,
+                                            boxShadow: "0 30px 60px rgba(0,0,0,0.3)"
+                                        }}
+                                        className="w-full flex justify-center mb-6 relative"
+                                    >
+                                        {/* 本の後ろのオーラ */}
+                                        <motion.div
+                                            animate={{
+                                                opacity: [0.3, 0.6, 0.3],
+                                                scale: [1, 1.1, 1],
+                                            }}
+                                            transition={{ duration: 2, repeat: Infinity }}
+                                            className="absolute inset-0 bg-gradient-to-br from-gold/20 to-sage/20 blur-3xl rounded-full"
+                                        />
+
+                                        {displayBook.imageUrl && !imageError ? (
+                                            <motion.img
+                                                src={displayBook.imageUrl}
+                                                alt={`${displayBook.book}の表紙`}
+                                                onError={() => setImageError(true)}
+                                                initial={{ filter: "blur(10px)" }}
+                                                animate={{ filter: "blur(0px)" }}
+                                                className="h-64 object-contain rounded-lg shadow-2xl relative z-10"
+                                            />
+                                        ) : (
+                                            <BookCoverPlaceholder title={displayBook.book} />
+                                        )}
+
+                                        {/* キラキラエフェクト */}
+                                        {[...Array(8)].map((_, i) => (
+                                            <motion.div
+                                                key={i}
+                                                className="absolute w-1 h-1 bg-gold rounded-full"
+                                                style={{
+                                                    left: `${20 + Math.random() * 60}%`,
+                                                    top: `${20 + Math.random() * 60}%`,
+                                                }}
+                                                animate={{
+                                                    scale: [0, 2, 0],
+                                                    opacity: [0, 1, 0],
+                                                }}
+                                                transition={{
+                                                    duration: 1.5,
+                                                    repeat: Infinity,
+                                                    delay: i * 0.3,
+                                                }}
+                                            />
+                                        ))}
+                                    </motion.div>
+
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.6 }}
+                                        className="text-center mb-6"
+                                    >
+                                        <motion.h2
+                                            initial={{ scale: 0.9 }}
+                                            animate={{ scale: 1 }}
+                                            transition={{ delay: 0.7, type: "spring" }}
+                                            className={`text-2xl font-bold mb-2 ${shadow ? "text-gold" : "text-navy"}`}
+                                        >
+                                            {displayBook.book}
+                                        </motion.h2>
+                                        <motion.p
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 0.9 }}
+                                            className={`text-base ${shadow ? "text-cream/80" : "text-navy/60"}`}
+                                        >
+                                            ✍️ {displayBook.author}
+                                        </motion.p>
+                                    </motion.div>
+
+                                    <div className={`text-left text-sm leading-relaxed p-4 rounded-lg ${shadow ? "bg-midnight/50" : "bg-cream/50"
+                                        }`}>
+                                        <p className="mb-3 font-semibold opacity-70">処方箋メモ:</p>
+                                        <p className="min-h-[4rem] whitespace-pre-wrap">
+                                            {displayedReason}
+                                            <span className="animate-pulse">|</span>
+                                        </p>
+                                    </div>
+                                </div>
                             )}
 
-                            <button
-                                onClick={toggleShadow}
-                                disabled={loadingShadow}
-                                className={`text-xs px-3 py-1.5 rounded-full transition-all ${shadow
-                                    ? "bg-cream/10 backdrop-blur-sm border border-cream/20 text-cream/80 hover:bg-cream/20"
-                                    : "border border-navy/30 text-navy/70 hover:border-navy hover:bg-navy/5"
-                                    } ${loadingShadow ? "opacity-50 cursor-not-allowed" : ""}`}
-                            >
-                                {loadingShadow ? "読み込み中..." : shadow ? "通常に戻る" : "Shadow"}
-                            </button>
+                            <div className="flex flex-col gap-3 w-full">
+                                {!loadingShadow && (
+                                    <button
+                                        onClick={() => onDetailClick(displayBook)}
+                                        className={`w-full py-3 rounded-lg font-semibold transition-all ${shadow
+                                                ? "bg-gold text-midnight hover:bg-gold/90"
+                                                : "bg-navy text-cream hover:opacity-90"
+                                            }`}
+                                    >
+                                        詳細を見る
+                                    </button>
+                                )}
+
+                                <button
+                                    onClick={toggleShadow}
+                                    disabled={loadingShadow}
+                                    className={`w-full py-3 rounded-lg font-semibold border transition-all flex items-center justify-center gap-2 ${shadow
+                                            ? "border-gold/30 text-gold hover:bg-gold/10"
+                                            : "border-navy/20 text-navy hover:bg-navy/5"
+                                        }`}
+                                >
+                                    {loadingShadow ? "通信中..." : shadow ? "いつもの処方箋に戻る" : "Shadowモードで処方する"}
+                                </button>
+
+                                <button
+                                    onClick={onBackToHome}
+                                    className={`mt-2 text-sm underline opacity-60 hover:opacity-100 ${shadow ? "text-cream" : "text-navy"
+                                        }`}
+                                >
+                                    トップへ戻る
+                                </button>
+                            </div>
                         </motion.div>
                     )}
-                </div>
+                </AnimatePresence>
+
+                {shadow && revealed && !loadingShadow && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="mt-8 mb-4 w-full"
+                    >
+                        <div className="p-4 rounded-xl border border-gold/30 bg-midnight/60 text-xs text-left">
+                            <p className="text-gold/80 mb-2 font-semibold">Shadowモードとは？</p>
+                            <p className="text-cream/70 leading-relaxed">
+                                あなたの性格診断結果を反転させ、普段なら手に取らないような本をあえて提案するモードです。
+                                コンフォートゾーンを抜け出し、新しい視点を得たい時にお試しください。
+                            </p>
+                        </div>
+                    </motion.div>
+                )}
             </div>
         </motion.div>
     );
